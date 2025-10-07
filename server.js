@@ -40,12 +40,33 @@ app.use(helmet({
 }));
 app.use(compression());
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration for both development and production
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://local-treasures-frontend.vercel.app',
+      'https://local-treasures-frontend-4boyx7lt4-aarushi-krishnas-projects.vercel.app',
+      process.env.FRONTEND_URL,
+      process.env.PRODUCTION_FRONTEND_URL
+    ].filter(Boolean);
+    
+    // Allow Vercel preview deployments
+    if (origin.includes('vercel.app') || origin.includes('local-treasures')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
@@ -55,22 +76,36 @@ const corsOptions = {
     'Accept',
     'Authorization',
     'Cache-Control',
-    'X-File-Name'
+    'X-File-Name',
+    'Access-Control-Allow-Origin'
   ],
   exposedHeaders: ['Authorization'],
-  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200,
   preflightContinue: false
 };
 
 app.use(cors(corsOptions));
 
-// Explicit preflight handling
+// Explicit preflight handling with dynamic origin
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-  res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,X-File-Name');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001', 
+    'https://local-treasures-frontend.vercel.app',
+    'https://local-treasures-frontend-4boyx7lt4-aarushi-krishnas-projects.vercel.app',
+    process.env.FRONTEND_URL,
+    process.env.PRODUCTION_FRONTEND_URL
+  ].filter(Boolean);
+  
+  if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,X-File-Name');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+  }
+  
   res.sendStatus(200);
 });
 
@@ -82,12 +117,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from uploads directory with CORS
+// Serve static files from uploads directory with dynamic CORS
 app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || "http://localhost:3000");
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'https://local-treasures-frontend.vercel.app',
+    'https://local-treasures-frontend-4boyx7lt4-aarushi-krishnas-projects.vercel.app',
+    process.env.FRONTEND_URL,
+    process.env.PRODUCTION_FRONTEND_URL
+  ].filter(Boolean);
+  
+  if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  }
   next();
 }, express.static('public/uploads'));
 
@@ -120,6 +166,14 @@ app.get('/api/keepalive', (req, res) => {
   res.status(200).json({ 
     status: 'alive',
     timestamp: new Date().toISOString()
+  });
+});
+
+// Handle manifest.json requests (return 404 instead of 401)
+app.get('/manifest.json', (req, res) => {
+  res.status(404).json({ 
+    error: 'Manifest not found on backend',
+    message: 'This should be served by the frontend'
   });
 });
 
