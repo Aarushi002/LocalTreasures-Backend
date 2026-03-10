@@ -29,23 +29,24 @@ const server = createServer(app);
 // Socket.io setup
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST']
   }
 });
 
 // Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 app.use(compression());
 
 // Enhanced CORS configuration for both development and production
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or Postman)
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
@@ -54,13 +55,12 @@ const corsOptions = {
       process.env.FRONTEND_URL,
       process.env.PRODUCTION_FRONTEND_URL
     ].filter(Boolean);
-    
-    // Allow Vercel preview deployments
+
     if (origin.includes('vercel.app') || origin.includes('local-treasures')) {
       return callback(null, true);
     }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log('❌ CORS blocked origin:', origin);
@@ -71,8 +71,8 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
     'Origin',
-    'X-Requested-With', 
-    'Content-Type', 
+    'X-Requested-With',
+    'Content-Type',
     'Accept',
     'Authorization',
     'Cache-Control',
@@ -91,58 +91,56 @@ app.options('*', (req, res) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
     'http://localhost:3000',
-    'http://localhost:3001', 
+    'http://localhost:3001',
     'https://local-treasures-frontend.vercel.app',
     'https://local-treasures-frontend-4boyx7lt4-aarushi-krishnas-projects.vercel.app',
     process.env.FRONTEND_URL,
     process.env.PRODUCTION_FRONTEND_URL
   ].filter(Boolean);
-  
+
   if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,X-File-Name');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin,X-Requested-With,Content-Type,Accept,Authorization,Cache-Control,X-File-Name'
+    );
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400');
   }
-  
+
   res.sendStatus(200);
 });
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Debug middleware for CORS issues
-app.use((req, res, next) => {
-  next();
-});
-
 // Serve static files from uploads directory with dynamic CORS
-app.use('/uploads', (req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'https://local-treasures-frontend.vercel.app',
-    'https://local-treasures-frontend-4boyx7lt4-aarushi-krishnas-projects.vercel.app',
-    process.env.FRONTEND_URL,
-    process.env.PRODUCTION_FRONTEND_URL
-  ].filter(Boolean);
-  
-  if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-  }
-  next();
-}, express.static('public/uploads'));
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://local-treasures-frontend.vercel.app',
+      'https://local-treasures-frontend-4boyx7lt4-aarushi-krishnas-projects.vercel.app',
+      process.env.FRONTEND_URL,
+      process.env.PRODUCTION_FRONTEND_URL
+    ].filter(Boolean);
 
-// Database connection
-connectDB().then(() => {
-  console.log('Database connected successfully');
-}).catch((err) => {
-  console.error('Database connection failed:', err);
-});
+    if (!origin || allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+      res.header('Access-Control-Allow-Origin', origin || '*');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header(
+        'Access-Control-Allow-Headers',
+        'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+      );
+      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    }
+    next();
+  },
+  express.static('public/uploads')
+);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -157,25 +155,25 @@ app.use('/api/wishlist', wishlistRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     message: 'Local Treasures API is running',
     database: dbStatus,
     timestamp: new Date().toISOString()
   });
 });
 
-// Keepalive endpoint to prevent idle timeouts
+// Keepalive endpoint
 app.get('/api/keepalive', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString()
   });
 });
 
-// Handle manifest.json requests (return 404 instead of 401)
+// Handle manifest.json requests
 app.get('/manifest.json', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Manifest not found on backend',
     message: 'This should be served by the frontend'
   });
@@ -187,8 +185,7 @@ socketHandlers(io);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error stack:', err.stack);
-  
-  // Handle CORS errors specifically
+
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
       success: false,
@@ -196,8 +193,7 @@ app.use((err, req, res, next) => {
       error: 'Origin not allowed'
     });
   }
-  
-  // Handle other errors
+
   res.status(err.status || 500).json({
     success: false,
     message: 'Something went wrong!',
@@ -212,7 +208,18 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+    console.log('Database connected successfully');
+
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (err) {
+    console.error('Database connection failed:', err);
+  }
+};
+
+startServer();
