@@ -22,25 +22,12 @@ const connectDB = async () => {
     const isAtlas = true; // Always using MongoDB Atlas
     
     const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000, // Atlas timeout
-      socketTimeoutMS: 75000, // Atlas timeout
-      maxPoolSize: 10, // Atlas connection pool
-      bufferCommands: false, // Disable mongoose buffering
-      maxIdleTimeMS: 30000, // Close connections after inactivity
-      heartbeatFrequencyMS: 10000, // Heartbeat every 10 seconds
-      retryWrites: true, // Retry write operations (important for Atlas)
-      retryReads: true, // Retry read operations
-      ...(dbName && { dbName }), // Override database name if specified
-      // MongoDB Atlas specific optimizations
-      authSource: 'admin',
-      ssl: true,
-      tlsAllowInvalidCertificates: false, // Updated from deprecated sslValidate
-      compressors: ['snappy', 'zlib'], // Enable compression for Atlas
-      connectTimeoutMS: 30000,
-      family: 4 // Use IPv4, skip trying IPv6
-    };
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  bufferCommands: false,
+  family: 4
+};
 
     const conn = await mongoose.connect(mongoURI, options);
 
