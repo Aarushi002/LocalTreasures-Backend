@@ -138,7 +138,11 @@ app.use('/uploads', (req, res, next) => {
 }, express.static('public/uploads'));
 
 // Database connection
-connectDB();
+connectDB().then(() => {
+  console.log('Database connected successfully');
+}).catch((err) => {
+  console.error('Database connection failed:', err);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
